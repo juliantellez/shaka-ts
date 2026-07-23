@@ -1,0 +1,7 @@
+dist/
+upstream/
+coverage/
+node_modules/
+package-lock.json
+LICENSE
+NOTICE

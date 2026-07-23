@@ -1,0 +1,34 @@
+{
+  "name": "shaka-ts-toolchain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Transpiles a pinned Shaka Player release from Closure annotated JavaScript into TypeScript. The published shaka-ts package is generated into dist/package by this toolchain.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Julian Tellez",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juliantellez/shaka-ts.git"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.17.0",
+    "jiti": "^2.4.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^4.1.10"
+  }
+}
