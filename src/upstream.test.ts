@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { UPSTREAM, isReproduciblePin, type UpstreamPin } from './upstream.js';
+import { UPSTREAM, isReproduciblePin, type UpstreamPin } from './upstream.ts';
 
 describe('UPSTREAM', () => {
   it('should pin an exact upstream release tag', () => {
