@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Upstream Shaka source is fetched at build time and never committed here.
+upstream/
+.cache/
+
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example

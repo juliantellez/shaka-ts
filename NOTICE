@@ -1,0 +1,16 @@
+shaka-ts
+Copyright 2026 Julian Tellez
+
+This product transpiles and redistributes a derivative work of:
+
+  Shaka Player
+  Copyright 2016 Google LLC
+  https://github.com/shaka-project/shaka-player
+  Licensed under the Apache License, Version 2.0
+
+Shaka Player is a trademark of Google LLC. This project is not affiliated with,
+endorsed by, or supported by Google LLC.
+
+Source files derived from Shaka Player retain their original copyright headers
+and SPDX-License-Identifier declarations. A copy of the Apache License, Version
+2.0 is included in the LICENSE file at the root of this repository.
