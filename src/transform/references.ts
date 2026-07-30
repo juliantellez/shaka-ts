@@ -58,6 +58,21 @@ export function rewriteReferences(
   exportNames: ReadonlyMap<string, string>,
 ): RewriteResult {
   const names = resolveFileBindings(record, graph, exportNames);
+  return rewriteBindings(sourceFile, names);
+}
+
+/**
+ * Rewrites a given set of namespace bindings across a file.
+ *
+ * The tokenizer core shared by the namespace rewrite and the file local pass:
+ * it replaces each namespace in code and in comments, never inside a string,
+ * and keeps the suffix of a longer reference by matching the longest namespace
+ * first.
+ */
+export function rewriteBindings(
+  sourceFile: SourceFile,
+  names: ReadonlyMap<string, string>,
+): RewriteResult {
   if (names.size === 0) {
     return { rewritten: 0 };
   }
