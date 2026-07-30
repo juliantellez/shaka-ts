@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify:roundtrip": "node --experimental-strip-types src/verify-roundtrip.ts"
+    "verify:roundtrip": "node --experimental-strip-types src/verify-roundtrip.ts",
+    "verify:graph": "node --experimental-strip-types src/verify-graph.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

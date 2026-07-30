@@ -1,0 +1,36 @@
+name: Graph
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, so a pin that drifts or an upstream change is caught even when no
+    # one is opening pull requests.
+    - cron: '0 6 * * 2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graph-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acyclic:
+    name: Assert the module graph is acyclic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Clones the pinned upstream release and fails if its goog.require graph
+      # contains a cycle, which would make the ES module conversion unsafe.
+      - name: Verify acyclic graph
+        run: npm run verify:graph
