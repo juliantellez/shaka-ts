@@ -88,14 +88,14 @@ describe('convertRequiresToImports', () => {
     expect(sourceFile.getFullText()).toContain('Timer as Timer2');
   });
 
-  it('should report a namespace no file provides as unresolved', () => {
-    const consumer = record('lib/a.js', ['shaka.A'], ['goog.Uri']);
+  it('should report a namespace no file provides and no runtime replaces as unresolved', () => {
+    const consumer = record('lib/a.js', ['shaka.A'], ['shaka.ui.Locales']);
     const { graph, names } = graphOf([consumer]);
 
-    const sourceFile = parse(`goog.require('goog.Uri');\n\nshaka.A = class {};\n`);
+    const sourceFile = parse(`goog.require('shaka.ui.Locales');\n\nshaka.A = class {};\n`);
     const result = convertRequiresToImports(sourceFile, consumer, graph, names);
 
-    expect(result.unresolved).toEqual(['goog.Uri']);
+    expect(result.unresolved).toEqual(['shaka.ui.Locales']);
     expect(result.imports).toHaveLength(0);
     expect(sourceFile.getFullText()).not.toContain('goog.require');
   });

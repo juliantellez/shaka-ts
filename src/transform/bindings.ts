@@ -1,5 +1,6 @@
 import { importSpecifier, type DependencyGraph, type ModuleRecord } from '../graph.ts';
 import { localNameFor } from './symbols.ts';
+import { RUNTIME_MODULES, runtimeSpecifier } from './runtime.ts';
 
 /**
  * A Closure namespace mapped onto the local identifier it becomes.
@@ -98,9 +99,16 @@ export function resolveImports(
     }
     seen.add(namespace);
 
+    const runtime = RUNTIME_MODULES.get(namespace);
     const providerPath = graph.providers.get(namespace);
-    const importedName = exportNames.get(namespace);
-    if (providerPath === undefined || importedName === undefined) {
+    const importedName = runtime?.exportName ?? exportNames.get(namespace);
+    const specifier = runtime
+      ? runtimeSpecifier(record.path, runtime.module)
+      : providerPath !== undefined
+        ? importSpecifier(record.path, providerPath)
+        : undefined;
+
+    if (importedName === undefined || specifier === undefined) {
       unresolved.push(namespace);
       return;
     }
@@ -111,13 +119,7 @@ export function resolveImports(
     }
     taken.add(localName);
 
-    imports.push({
-      namespace,
-      localName,
-      importedName,
-      specifier: importSpecifier(record.path, providerPath),
-      typeOnly,
-    });
+    imports.push({ namespace, localName, importedName, specifier, typeOnly });
   };
 
   for (const namespace of record.requires) {
