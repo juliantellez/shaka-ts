@@ -42,6 +42,10 @@ class Cursor {
     return this.position >= this.input.length;
   }
 
+  public at(): number {
+    return this.position;
+  }
+
   /** Reads a dotted, optionally namespaced name such as `shaka.util.Error`. */
   public readName(): string {
     const match = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*/.exec(this.input.slice(this.position));
@@ -107,6 +111,13 @@ function parseAtom(cursor: Cursor): string {
   }
 
   const name = cursor.readName();
+
+  // The `typeof X` operator has the same meaning in both languages.
+  if (name === 'typeof') {
+    cursor.skipSpace();
+    return `typeof ${cursor.readName()}`;
+  }
+
   cursor.skipSpace();
   if (cursor.startsWith('.<') || cursor.peek() === '<') {
     return parseGeneric(cursor, name);
@@ -140,11 +151,17 @@ function parseRecord(cursor: Cursor): string {
   cursor.skipSpace();
   const members: string[] = [];
   while (cursor.peek() !== '}' && !cursor.done()) {
+    const before = cursor.at();
     const key = cursor.readName();
     cursor.skipSpace();
+    const optional = cursor.peek() === '?'; // Closure optional record key `{k?: T}`.
+    if (optional) {
+      cursor.take();
+      cursor.skipSpace();
+    }
     if (cursor.peek() === ':') {
       cursor.take();
-      members.push(`${key}: ${parseType(cursor)}`);
+      members.push(`${key}${optional ? '?' : ''}: ${parseType(cursor)}`);
     } else {
       members.push(`${key}: unknown`);
     }
@@ -152,6 +169,9 @@ function parseRecord(cursor: Cursor): string {
     if (cursor.peek() === ',') {
       cursor.take();
       cursor.skipSpace();
+    }
+    if (cursor.at() === before) {
+      cursor.take(); // Guarantee progress so a stray character cannot loop forever.
     }
   }
   cursor.take(); // '}'
@@ -170,6 +190,7 @@ function parseFunction(cursor: Cursor): string {
 
   cursor.skipSpace();
   while (cursor.peek() !== ')' && !cursor.done()) {
+    const before = cursor.at();
     if (cursor.startsWith('this')) {
       cursor.take('this'.length);
       cursor.skipSpace();
@@ -199,6 +220,9 @@ function parseFunction(cursor: Cursor): string {
     if (cursor.peek() === ',') {
       cursor.take();
       cursor.skipSpace();
+    }
+    if (cursor.at() === before) {
+      cursor.take(); // Guarantee progress.
     }
   }
   cursor.take(); // ')'
@@ -240,9 +264,21 @@ function wrapUnion(type: string): string {
   return type.includes('|') ? `(${type})` : type;
 }
 
+/**
+ * Collapses a multi-line JSDoc type onto one line.
+ *
+ * A record type that spans several lines in a comment carries the JSDoc line
+ * prefixes, `\n   *   `, into the text ts-morph returns. Each such prefix
+ * becomes a single space so the parser sees a clean expression, while a `*`
+ * used as the wildcard type, which never follows a newline, is left alone.
+ */
+function normalize(closureType: string): string {
+  return closureType.replace(/\s*\n\s*\*?\s*/g, ' ').trim();
+}
+
 /** Translates a Closure type expression, returning `unknown` for empty input. */
 export function translateType(closureType: string): string {
-  const trimmed = closureType.trim();
+  const trimmed = normalize(closureType);
   if (trimmed === '') {
     return 'unknown';
   }
