@@ -1,26 +1,7 @@
 import { Node, type SourceFile, type Statement } from 'ts-morph';
-import { importSpecifier, type DependencyGraph, type ModuleRecord } from '../graph.ts';
-import { computeOwnBindings } from './bindings.ts';
+import type { DependencyGraph, ModuleRecord } from '../graph.ts';
+import { resolveImports, type ImportBinding, type ResolvedImports } from './bindings.ts';
 import { insertBelowHeader } from './source.ts';
-
-/** One resolved import: a namespace, where it comes from, and its local name. */
-export interface ImportBinding {
-  readonly namespace: string;
-  /** The identifier the namespace is used under in this file. */
-  readonly localName: string;
-  /** The exported name in the providing file, when it differs from localName. */
-  readonly importedName: string;
-  /** Module specifier to import from, for example `../util/error.js`. */
-  readonly specifier: string;
-  /** True for a `goog.requireType`, which becomes an `import type`. */
-  readonly typeOnly: boolean;
-}
-
-export interface ImportResult {
-  readonly imports: readonly ImportBinding[];
-  /** Required namespaces provided by no file, such as the Closure `goog.Uri`. */
-  readonly unresolved: readonly string[];
-}
 
 function isRequireCall(statement: Statement): boolean {
   if (!Node.isExpressionStatement(statement)) {
@@ -82,46 +63,8 @@ export function convertRequiresToImports(
   record: ModuleRecord,
   graph: DependencyGraph,
   exportNames: ReadonlyMap<string, string>,
-): ImportResult {
-  const taken = new Set(computeOwnBindings(record).map((binding) => binding.localName));
-  const imports: ImportBinding[] = [];
-  const unresolved: string[] = [];
-  const seen = new Set<string>();
-
-  const resolve = (namespace: string, typeOnly: boolean): void => {
-    if (seen.has(namespace)) {
-      return;
-    }
-    seen.add(namespace);
-
-    const providerPath = graph.providers.get(namespace);
-    const importedName = exportNames.get(namespace);
-    if (providerPath === undefined || importedName === undefined) {
-      unresolved.push(namespace);
-      return;
-    }
-
-    let localName = importedName;
-    for (let suffix = 2; taken.has(localName); suffix += 1) {
-      localName = `${importedName}${String(suffix)}`;
-    }
-    taken.add(localName);
-
-    imports.push({
-      namespace,
-      localName,
-      importedName,
-      specifier: importSpecifier(record.path, providerPath),
-      typeOnly,
-    });
-  };
-
-  for (const namespace of record.requires) {
-    resolve(namespace, false);
-  }
-  for (const namespace of record.requireTypes) {
-    resolve(namespace, true);
-  }
+): ResolvedImports {
+  const resolved = resolveImports(record, graph, exportNames);
 
   for (const statement of sourceFile.getStatements()) {
     if (isRequireCall(statement)) {
@@ -129,9 +72,9 @@ export function convertRequiresToImports(
     }
   }
 
-  if (imports.length > 0) {
-    insertBelowHeader(sourceFile, renderImports(imports));
+  if (resolved.imports.length > 0) {
+    insertBelowHeader(sourceFile, renderImports(resolved.imports));
   }
 
-  return { imports, unresolved };
+  return resolved;
 }
