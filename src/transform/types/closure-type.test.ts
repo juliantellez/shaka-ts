@@ -90,6 +90,10 @@ describe('translateType', () => {
     expect(translateType('!Promise<number>')).toBe('Promise<number>');
   });
 
+  it('should preserve the typeof operator', () => {
+    expect(translateType('typeof shaka.Player')).toBe('typeof shaka.Player');
+  });
+
   it('should return unknown for an empty type', () => {
     expect(translateType('')).toBe('unknown');
   });

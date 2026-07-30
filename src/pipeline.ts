@@ -15,6 +15,7 @@ import { dropClosureOnlyCalls, removeNamespaceAnchors } from './transform/closur
 import { convertRequiresToImports } from './transform/imports.ts';
 import { rewriteReferences } from './transform/references.ts';
 import { declareFields } from './transform/fields.ts';
+import { applySignatureTypes } from './transform/types/signatures.ts';
 
 /**
  * Extra provider files outside `lib` and `ui` that the library depends on.
@@ -70,6 +71,7 @@ export function transpileSourceFile(
   // Runs last, on the reparsed tree the reference rewrite produced, so the
   // annotations it carries onto the fields already use the local identifiers.
   declareFields(sourceFile);
+  applySignatureTypes(sourceFile);
   return [...unresolved];
 }
 
