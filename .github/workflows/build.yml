@@ -47,6 +47,10 @@ jobs:
       - name: Oracle
         run: npm run test:oracle
 
+      # Emits declarations and checks the public surface survived.
+      - name: Declarations
+        run: npm run verify:dts
+
       # Type checks the transpiled output through its JSDoc and fails if the
       # error count rises above the ratchet baseline.
       - name: checkJs ratchet
