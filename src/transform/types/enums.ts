@@ -1,4 +1,4 @@
-import { Node, type JSDocableNode, type SourceFile, type VariableStatement } from 'ts-morph';
+import { Node, type ExpressionStatement, type SourceFile, type Statement } from 'ts-morph';
 
 export interface EnumResult {
   /** Number of `@enum` objects converted. */
@@ -6,7 +6,10 @@ export interface EnumResult {
 }
 
 /** True when a statement's JSDoc carries an `@enum` tag. */
-function isEnum(statement: JSDocableNode): boolean {
+function isEnum(statement: Statement): boolean {
+  if (!Node.isJSDocable(statement)) {
+    return false;
+  }
   return statement
     .getJsDocs()
     .some((jsDoc) => jsDoc.getTags().some((tag) => tag.getTagName() === 'enum'));
@@ -20,10 +23,7 @@ function isEnum(statement: JSDocableNode): boolean {
  * which narrows the members to literals, the core of preferring `as const` over
  * a TypeScript `enum`.
  */
-function convertMemberEnum(statement: VariableStatement | JSDocableNode): boolean {
-  if (!Node.isExpressionStatement(statement)) {
-    return false;
-  }
+function convertMemberEnum(statement: ExpressionStatement): boolean {
   const expression = statement.getExpression();
   if (!Node.isBinaryExpression(expression)) {
     return false;
