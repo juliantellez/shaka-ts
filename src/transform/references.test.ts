@@ -128,6 +128,19 @@ describe('rewriteReferences', () => {
     expect(text).toContain('new Timer2();');
   });
 
+  it('should remove a self referential alias the rewrite produces', () => {
+    const rec = record('lib/util/buffer_utils.js', ['shaka.util.BufferUtils']);
+    const { graph, names } = graphOf([rec]);
+    const sourceFile = parse(
+      `export class BufferUtils {\n  static equal(a, b) {\n    const BufferUtils = shaka.util.BufferUtils;\n    return BufferUtils.same(a, b);\n  }\n}\n`,
+    );
+
+    rewriteReferences(sourceFile, rec, graph, names);
+    const text = sourceFile.getFullText();
+    expect(text).not.toContain('const BufferUtils = BufferUtils;');
+    expect(text).toContain('return BufferUtils.same(a, b);');
+  });
+
   it('should report how many references it rewrote', () => {
     const rec = record('lib/hls/tag.js', ['shaka.hls.Tag']);
     const { graph, names } = graphOf([rec]);

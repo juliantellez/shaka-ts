@@ -23,13 +23,15 @@
     "verify:roundtrip": "node --experimental-strip-types src/verify-roundtrip.ts",
     "verify:graph": "node --experimental-strip-types src/verify-graph.ts",
     "build": "node --experimental-strip-types src/build.ts",
-    "verify:size": "node --experimental-strip-types src/verify-size.ts"
+    "verify:size": "node --experimental-strip-types src/verify-size.ts",
+    "test:oracle": "vitest run --config vitest.oracle.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@types/node": "^22.10.0",
     "esbuild": "^0.28.1",
     "eslint": "^9.17.0",
+    "happy-dom": "^20.11.1",
     "jiti": "^2.4.0",
     "prettier": "^3.4.0",
     "ts-morph": "^28.0.0",
