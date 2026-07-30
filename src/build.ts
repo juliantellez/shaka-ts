@@ -6,6 +6,7 @@ import { fetchUpstream } from './fetch.ts';
 import { buildGraph, discoverModuleFiles, toOutputPath } from './graph.ts';
 import { buildExportNameMap } from './transform/bindings.ts';
 import { transpileLibrary } from './pipeline.ts';
+import { applyPatches } from './patches.ts';
 
 const OUTPUT_DIR = 'build/package';
 const BUNDLE_DIR = 'build/dist';
@@ -99,6 +100,13 @@ async function bundle(): Promise<void> {
 async function main(): Promise<void> {
   const root = await fetchUpstream();
   await writeTree(root);
+
+  // Apply the hand written overlay for what the codemod cannot reach.
+  const patched = applyPatches(OUTPUT_DIR, 'patches');
+  if (patched.applied.length > 0) {
+    process.stdout.write(`applied ${String(patched.applied.length)} patches\n`);
+  }
+
   await bundle();
   process.stdout.write('build complete\n');
 }
