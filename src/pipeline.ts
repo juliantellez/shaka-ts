@@ -16,6 +16,7 @@ import { convertRequiresToImports } from './transform/imports.ts';
 import { rewriteReferences } from './transform/references.ts';
 import { declareFields } from './transform/fields.ts';
 import { applySignatureTypes } from './transform/types/signatures.ts';
+import { dropClosureAnnotations } from './transform/types/annotations.ts';
 
 /**
  * Extra provider files outside `lib` and `ui` that the library depends on.
@@ -72,6 +73,7 @@ export function transpileSourceFile(
   // annotations it carries onto the fields already use the local identifiers.
   declareFields(sourceFile);
   applySignatureTypes(sourceFile);
+  dropClosureAnnotations(sourceFile);
   return [...unresolved];
 }
 
