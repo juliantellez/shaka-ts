@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Project, ScriptKind, ScriptTarget, type SourceFile } from 'ts-morph';
 import type { DependencyGraph, ModuleRecord } from '../graph.ts';
 import { buildExportNameMap, resolveImports } from './bindings.ts';
-import { dropClosureOnlyCalls } from './closure-cleanup.ts';
+import { dropClosureOnlyCalls, removeNamespaceAnchors } from './closure-cleanup.ts';
 
 function parse(source: string): SourceFile {
   const project = new Project({
@@ -36,6 +36,28 @@ describe('dropClosureOnlyCalls', () => {
     const sourceFile = parse(`foo();\nbar();\n`);
     expect(dropClosureOnlyCalls(sourceFile).removed).toBe(0);
     expect(sourceFile.getFullText()).toBe(`foo();\nbar();\n`);
+  });
+});
+
+describe('removeNamespaceAnchors', () => {
+  it('should remove a bare namespace typedef anchor', () => {
+    const sourceFile = parse(
+      `/** @typedef {{a: number}} */\nshaka.util.ParsedBox;\nconst x = 1;\n`,
+    );
+    const result = removeNamespaceAnchors(sourceFile);
+    expect(result.removed).toBe(1);
+    expect(sourceFile.getFullText()).not.toContain('shaka.util.ParsedBox;');
+    expect(sourceFile.getFullText()).toContain('const x = 1;');
+  });
+
+  it('should not remove a call or an assignment on a namespace', () => {
+    const sourceFile = parse(`shaka.log.info('x');\nshaka.a.b = 1;\n`);
+    expect(removeNamespaceAnchors(sourceFile).removed).toBe(0);
+  });
+
+  it('should not remove a bare access that is not a known namespace root', () => {
+    const sourceFile = parse(`config.value;\n`);
+    expect(removeNamespaceAnchors(sourceFile).removed).toBe(0);
   });
 });
 

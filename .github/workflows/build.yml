@@ -1,0 +1,35 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Transpile and bundle the core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Fetches the pinned upstream release, transpiles the whole library, and
+      # bundles the core with esbuild. Fails if any import cannot be resolved.
+      - name: Build
+        run: npm run build
+
+      - name: Check the bundle was produced
+        run: test -s build/dist/shaka-player.min.js

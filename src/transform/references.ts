@@ -16,15 +16,20 @@ function escapeForRegExp(value: string): string {
  *
  * Namespaces are ordered longest first, so `shaka.util.Error` is tried before
  * `shaka.util` and a reference like `shaka.util.Error.Code` rewrites through the
- * longer binding and keeps its `.Code` suffix. The boundaries stop a namespace
- * from matching when it is only the tail of a longer identifier.
+ * longer binding and keeps its `.Code` suffix.
+ *
+ * The lookbehind stops a namespace matching as the tail of a longer identifier
+ * (`myshaka`) or as a property of another object (`foo.shaka`), but must still
+ * match after a spread, where the preceding dot belongs to `...` rather than a
+ * property access. So it rejects only a dot that follows an identifier, not the
+ * dots of a spread.
  */
 function namespaceMatcher(namespaces: readonly string[]): RegExp {
   const alternation = [...namespaces]
     .sort((a, b) => b.length - a.length)
     .map(escapeForRegExp)
     .join('|');
-  return new RegExp(`(?<![\\w$.])(?:${alternation})(?![\\w$])`, 'g');
+  return new RegExp(`(?<![\\w$])(?<![\\w$)\\]]\\.)(?:${alternation})(?![\\w$])`, 'g');
 }
 
 /**
