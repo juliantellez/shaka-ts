@@ -15,6 +15,7 @@ import { dropClosureOnlyCalls, removeNamespaceAnchors } from './transform/closur
 import { convertRequiresToImports } from './transform/imports.ts';
 import { rewriteReferences } from './transform/references.ts';
 import { declareFields } from './transform/fields.ts';
+import { applyTemplates } from './transform/types/templates.ts';
 import { applySignatureTypes } from './transform/types/signatures.ts';
 import { dropClosureAnnotations } from './transform/types/annotations.ts';
 import { convertEnums } from './transform/types/enums.ts';
@@ -73,6 +74,7 @@ export function transpileSourceFile(
   // Runs last, on the reparsed tree the reference rewrite produced, so the
   // annotations it carries onto the fields already use the local identifiers.
   declareFields(sourceFile);
+  applyTemplates(sourceFile);
   applySignatureTypes(sourceFile);
   dropClosureAnnotations(sourceFile);
   convertEnums(sourceFile);
