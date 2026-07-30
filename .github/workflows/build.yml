@@ -38,3 +38,7 @@ jobs:
       # the gzip regression passes the ceiling.
       - name: Bundle size
         run: npm run verify:size
+
+      # Runs Shaka's own unit tests, unmodified, against the transpiled output.
+      - name: Oracle
+        run: npm run test:oracle

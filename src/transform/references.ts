@@ -114,6 +114,22 @@ export function rewriteBindings(
     return token;
   });
 
-  sourceFile.replaceWithText(output);
+  sourceFile.replaceWithText(removeSelfAliases(output));
   return { rewritten };
+}
+
+/** A local alias that became self referential after the namespace rewrite. */
+const SELF_ALIAS = /^[ \t]*const ([A-Za-z_$][\w$]*) = \1;[ \t]*\r?\n/gm;
+
+/**
+ * Removes `const X = X;` statements left by the rewrite.
+ *
+ * Shaka shortens a long namespace inside a method with `const BufferUtils =
+ * shaka.util.BufferUtils;`. Once the right hand side is rewritten to its local
+ * name it reads `const BufferUtils = BufferUtils`, a temporal dead zone crash
+ * rather than an alias. The binding is already in scope, so the statement is
+ * redundant and removed.
+ */
+function removeSelfAliases(code: string): string {
+  return code.replace(SELF_ALIAS, '');
 }
