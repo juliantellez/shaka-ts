@@ -17,6 +17,7 @@ import { rewriteReferences } from './transform/references.ts';
 import { declareFields } from './transform/fields.ts';
 import { applySignatureTypes } from './transform/types/signatures.ts';
 import { dropClosureAnnotations } from './transform/types/annotations.ts';
+import { convertEnums } from './transform/types/enums.ts';
 
 /**
  * Extra provider files outside `lib` and `ui` that the library depends on.
@@ -74,6 +75,7 @@ export function transpileSourceFile(
   declareFields(sourceFile);
   applySignatureTypes(sourceFile);
   dropClosureAnnotations(sourceFile);
+  convertEnums(sourceFile);
   return [...unresolved];
 }
 
