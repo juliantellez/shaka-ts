@@ -17,7 +17,7 @@ import { join } from 'node:path';
  * Set a little above the observed count, because tsc's count wobbles by a few
  * between runs. The gate is meant to catch a regression of hundreds.
  */
-export const CHECKJS_BASELINE = 7_560;
+export const CHECKJS_BASELINE = 7_520;
 
 const TSCONFIG = {
   compilerOptions: {

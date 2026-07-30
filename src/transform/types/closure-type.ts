@@ -171,8 +171,13 @@ function parseRecord(cursor: Cursor): string {
     }
     if (cursor.peek() === ':') {
       cursor.take();
-      members.push(`${key}${optional ? '?' : ''}: ${parseType(cursor)}`);
-    } else {
+      const value = parseType(cursor);
+      // Skip a member whose key could not be read, rather than emitting a
+      // syntactically invalid `: value` with no name.
+      if (key !== '') {
+        members.push(`${key}${optional ? '?' : ''}: ${value}`);
+      }
+    } else if (key !== '') {
       members.push(`${key}: unknown`);
     }
     cursor.skipSpace();

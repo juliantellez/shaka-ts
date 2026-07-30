@@ -11,6 +11,7 @@ import {
 import { buildExportNameMap } from './transform/bindings.ts';
 import { extractLicenseHeader, ensureLicenseHeader } from './transform/source.ts';
 import { convertProvidesToExports } from './transform/exports.ts';
+import { convertTypedefs } from './transform/types/typedefs.ts';
 import { convertFileLocals } from './transform/locals.ts';
 import { dropClosureOnlyCalls, removeNamespaceAnchors } from './transform/closure-cleanup.ts';
 import { convertRequiresToImports } from './transform/imports.ts';
@@ -69,6 +70,7 @@ export function transpileSourceFile(
 ): string[] {
   const record = readModule(root, relativePath);
   const header = extractLicenseHeader(sourceFile.getFullText());
+  convertTypedefs(sourceFile);
   convertProvidesToExports(sourceFile, record);
   convertFileLocals(sourceFile, record, graph, exportNames);
   dropClosureOnlyCalls(sourceFile);
