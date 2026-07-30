@@ -21,6 +21,7 @@ import { applySignatureTypes } from './transform/types/signatures.ts';
 import { dropClosureAnnotations } from './transform/types/annotations.ts';
 import { convertEnums } from './transform/types/enums.ts';
 import { applyVisibility } from './transform/types/visibility.ts';
+import { applyHeritage } from './transform/types/heritage.ts';
 
 /**
  * Extra provider files outside `lib` and `ui` that the library depends on.
@@ -82,6 +83,7 @@ export function transpileSourceFile(
   dropClosureAnnotations(sourceFile);
   convertEnums(sourceFile);
   applyVisibility(sourceFile);
+  applyHeritage(sourceFile);
   ensureLicenseHeader(sourceFile, header);
   return [...unresolved];
 }
