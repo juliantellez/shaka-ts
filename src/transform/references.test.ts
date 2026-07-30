@@ -86,6 +86,24 @@ describe('rewriteReferences', () => {
     expect(sourceFile.getFullText()).toContain('`saw shaka.util.Error here`');
   });
 
+  it('should rewrite a namespace that follows a spread operator', () => {
+    const rec = record('lib/text/text_utils.js', ['shaka.text.Utils']);
+    const { graph, names } = graphOf([rec]);
+    const sourceFile = parse(`result.push(...shaka.text.Utils.getCuesToFlatten(x));\n`);
+
+    rewriteReferences(sourceFile, rec, graph, names);
+    expect(sourceFile.getFullText()).toContain('result.push(...Utils.getCuesToFlatten(x));');
+  });
+
+  it('should not rewrite a namespace that is a property of another object', () => {
+    const rec = record('lib/a.js', ['shaka.A']);
+    const { graph, names } = graphOf([rec]);
+    const sourceFile = parse(`const x = foo.shaka.A;\n`);
+
+    rewriteReferences(sourceFile, rec, graph, names);
+    expect(sourceFile.getFullText()).toContain('foo.shaka.A');
+  });
+
   it('should not rewrite a longer identifier that merely ends with a namespace', () => {
     const rec = record('lib/a.js', ['shaka.A']);
     const { graph, names } = graphOf([rec]);
