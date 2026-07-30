@@ -33,3 +33,8 @@ jobs:
 
       - name: Check the bundle was produced
         run: test -s build/dist/shaka-player.min.js
+
+      # Reports the bundle size against the Closure baseline, and fails only if
+      # the gzip regression passes the ceiling.
+      - name: Bundle size
+        run: npm run verify:size
