@@ -23,6 +23,7 @@
     "verify:roundtrip": "node --experimental-strip-types src/verify-roundtrip.ts",
     "verify:graph": "node --experimental-strip-types src/verify-graph.ts",
     "build": "node --experimental-strip-types src/build.ts",
+    "bump": "node --experimental-strip-types src/bump.ts",
     "verify:size": "node --experimental-strip-types src/verify-size.ts",
     "verify:licenses": "node --experimental-strip-types src/verify-licenses.ts",
     "test:oracle": "vitest run --config vitest.oracle.config.ts",
