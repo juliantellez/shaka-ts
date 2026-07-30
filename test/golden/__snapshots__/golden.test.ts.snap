@@ -26,7 +26,7 @@ exports[`golden fixtures > should transpile lib/util/error.js to a stable output
 
 export class UtilError {
     /** @private {number} */
-    code_;
+    private code_;
 
   /** @param {number} code */
   constructor(code: number) {
@@ -45,7 +45,7 @@ UtilError.Code = {
 exports[`golden fixtures > should transpile lib/util/lazy.js to a stable output 1`] = `
 "export class Lazy {
     /** @private {function():T} */
-    generate_;
+    private generate_;
 
   /** @param {function():T} generate */
   constructor(generate: () => T) {
