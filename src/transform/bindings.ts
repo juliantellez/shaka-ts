@@ -1,4 +1,4 @@
-import type { ModuleRecord } from '../graph.ts';
+import type { DependencyGraph, ModuleRecord } from '../graph.ts';
 import { localNameFor } from './symbols.ts';
 
 /**
@@ -31,4 +31,25 @@ export function computeOwnBindings(record: ModuleRecord): Binding[] {
     bindings.push({ namespace, localName });
   }
   return bindings;
+}
+
+/**
+ * Maps every provided namespace in the library to the identifier its own file
+ * exports it as.
+ *
+ * A file that imports a namespace must use the same name the providing file
+ * exported, so this is the shared source of truth: the import pass reads it to
+ * name an import, and the reference rewrite reads it to rename a use. Because
+ * each file's bindings are computed independently, the same last segment can
+ * export from two files under the same name, which the import pass resolves per
+ * file with an alias when they meet.
+ */
+export function buildExportNameMap(graph: DependencyGraph): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const record of graph.modules.values()) {
+    for (const binding of computeOwnBindings(record)) {
+      names.set(binding.namespace, binding.localName);
+    }
+  }
+  return names;
 }
