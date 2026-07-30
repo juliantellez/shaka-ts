@@ -16,7 +16,7 @@ import { join } from 'node:path';
  * a few between runs. The gate is meant to catch a regression of hundreds, so a
  * small margin trades nothing real for not flaking.
  */
-export const CHECKJS_BASELINE = 7_850;
+export const CHECKJS_BASELINE = 4_250;
 
 const TSCONFIG = {
   compilerOptions: {

@@ -14,6 +14,7 @@ import { convertFileLocals } from './transform/locals.ts';
 import { dropClosureOnlyCalls, removeNamespaceAnchors } from './transform/closure-cleanup.ts';
 import { convertRequiresToImports } from './transform/imports.ts';
 import { rewriteReferences } from './transform/references.ts';
+import { declareFields } from './transform/fields.ts';
 
 /**
  * Extra provider files outside `lib` and `ui` that the library depends on.
@@ -66,6 +67,9 @@ export function transpileSourceFile(
   removeNamespaceAnchors(sourceFile);
   const { unresolved } = convertRequiresToImports(sourceFile, record, graph, exportNames);
   rewriteReferences(sourceFile, record, graph, exportNames);
+  // Runs last, on the reparsed tree the reference rewrite produced, so the
+  // annotations it carries onto the fields already use the local identifiers.
+  declareFields(sourceFile);
   return [...unresolved];
 }
 
