@@ -98,3 +98,12 @@ describe('translateType', () => {
     expect(translateType('')).toBe('unknown');
   });
 });
+
+describe('function types in unions', () => {
+  it('should parenthesise a function type before a null suffix', () => {
+    expect(translateType('?function(number): void')).toBe('((arg0: number) => void) | null');
+  });
+  it('should mix a plain type and a function in a union', () => {
+    expect(translateType('undefined|function(): number')).toBe('undefined | (() => number)');
+  });
+});

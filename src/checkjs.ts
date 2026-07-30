@@ -3,20 +3,21 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * The current count of type errors when checking the transpiled output with
- * `checkJs`, which reads the Closure JSDoc as types.
+ * The current count of type errors when checking the transpiled output under
+ * full `strict` mode.
  *
- * This is a ratchet, not a target. TypeScript understands most of Shaka's JSDoc
- * already, but the inline `this.x` property annotations and the Closure only
- * optional parameter syntax are not declared in a way it accepts yet, so the
- * count starts high. Every later type slice lowers it; the gate only fails if
- * it rises, so no change can quietly make the types worse.
+ * This is a ratchet, not a target. Without strict, the transpiled output checks
+ * nearly clean, but `strict` turns on `strictNullChecks` and `noImplicitAny`,
+ * which surface the long tail the module and type passes cannot reach on their
+ * own: statics not yet hoisted, extern namespaces not yet declared as types, and
+ * untyped callback parameters. Getting this to zero is the work of the patch
+ * overlay and further type passes; the gate only fails if the count rises, so no
+ * change can quietly make the types worse.
  *
- * Set a little above the observed count (~7800), because tsc's count wobbles by
- * a few between runs. The gate is meant to catch a regression of hundreds, so a
- * small margin trades nothing real for not flaking.
+ * Set a little above the observed count, because tsc's count wobbles by a few
+ * between runs. The gate is meant to catch a regression of hundreds.
  */
-export const CHECKJS_BASELINE = 20;
+export const CHECKJS_BASELINE = 7_600;
 
 const TSCONFIG = {
   compilerOptions: {
@@ -27,7 +28,7 @@ const TSCONFIG = {
     allowImportingTsExtensions: true,
     noEmit: true,
     skipLibCheck: true,
-    strict: false,
+    strict: true,
     allowJs: true,
     checkJs: true,
   },
