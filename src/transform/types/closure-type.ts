@@ -82,7 +82,17 @@ function parseUnion(cursor: Cursor): string {
     parts.push(parseAtom(cursor));
     cursor.skipSpace();
   }
-  return parts.join(' | ');
+  if (parts.length === 1) {
+    return parts[0] ?? '';
+  }
+  // A function type must be parenthesised inside a union, or `A | () => B` reads
+  // as `A | (() => B)` with the wrong precedence and TypeScript rejects it.
+  return parts.map((part) => (isFunctionType(part) ? `(${part})` : part)).join(' | ');
+}
+
+/** True when a rendered type contains a function arrow that a union must parenthesise. */
+function isFunctionType(type: string): boolean {
+  return type.includes('=>');
 }
 
 function parseAtom(cursor: Cursor): string {
@@ -261,7 +271,9 @@ function isTypeEnd(cursor: Cursor): boolean {
 }
 
 function wrapUnion(type: string): string {
-  return type.includes('|') ? `(${type})` : type;
+  // Parenthesise a union or a function type before a `| null` suffix, so the
+  // precedence is right and TypeScript accepts it.
+  return type.includes('|') || type.includes('=>') ? `(${type})` : type;
 }
 
 /**
