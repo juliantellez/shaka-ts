@@ -1,0 +1,61 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden fixtures > should transpile lib/net/engine.js to a stable output 1`] = `
+"import { UtilError } from '../util/error.ts';
+import { Uri } from '../../runtime/uri.ts';
+import { DEBUG } from '../../runtime/debug.ts';
+
+export class Engine {
+  /**
+   * @param {string} uri
+   * @return {!UtilError}
+   */
+  fail(uri: string): UtilError {
+    if (DEBUG) {
+      const resolved = new Uri(uri);
+      return new UtilError(resolved.toString().length);
+    }
+    return new UtilError(UtilError.Code.OK);
+  }
+}
+"
+`;
+
+exports[`golden fixtures > should transpile lib/util/error.js to a stable output 1`] = `
+"/*! @license Shaka Player */
+
+export class UtilError {
+    /** @private {number} */
+    code_;
+
+  /** @param {number} code */
+  constructor(code: number) {
+    /** @private {number} */
+    this.code_ = code;
+  }
+}
+
+/** @enum {number} */
+UtilError.Code = {
+  OK: 0,
+} as const;
+"
+`;
+
+exports[`golden fixtures > should transpile lib/util/lazy.js to a stable output 1`] = `
+"export class Lazy {
+    /** @private {function():T} */
+    generate_;
+
+  /** @param {function():T} generate */
+  constructor(generate: () => T) {
+    /** @private {function():T} */
+    this.generate_ = generate;
+  }
+  /** @return {T} */
+  value(): T {
+    return this.generate_();
+  }
+}
+"
+`;
