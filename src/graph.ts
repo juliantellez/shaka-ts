@@ -1,5 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { relative, dirname, join, posix } from 'node:path';
+
+/**
+ * Directories under the upstream root that hold convertible source.
+ *
+ * `lib` is the player, `ui` is the optional controls layer. Everything else
+ * (externs, demo, test, build) is either type only, tooling, or not part of the
+ * shipped library, so it stays out of the module graph.
+ */
+const SOURCE_DIRECTORIES = ['lib', 'ui'] as const;
 
 const PROVIDE_PATTERN = /goog\.provide\('([^']+)'\)/g;
 const REQUIRE_PATTERN = /goog\.require\('([^']+)'\)/g;
@@ -32,6 +41,29 @@ function matchAll(source: string, pattern: RegExp): string[] {
     }
   }
   return found;
+}
+
+/**
+ * Finds every convertible source file under the upstream root.
+ *
+ * Returns paths relative to the root, sorted, so the graph and its checksum are
+ * deterministic regardless of directory listing order. On the clean Shaka
+ * 4.16.5 tag this is 288 files across `lib` and `ui`.
+ */
+export function discoverModuleFiles(rootDir: string): string[] {
+  const found: string[] = [];
+  for (const directory of SOURCE_DIRECTORIES) {
+    const entries = readdirSync(join(rootDir, directory), {
+      recursive: true,
+      withFileTypes: true,
+    });
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.js')) {
+        found.push(relative(rootDir, join(entry.parentPath, entry.name)));
+      }
+    }
+  }
+  return found.sort();
 }
 
 export function readModule(rootDir: string, relativePath: string): ModuleRecord {
@@ -163,6 +195,55 @@ export function findCycles(graph: DependencyGraph): string[][] {
   }
 
   return cycles;
+}
+
+/** Counts that describe the shape of a dependency graph. */
+export interface GraphStats {
+  readonly files: number;
+  /** Distinct runtime require edges between files, ignoring duplicates. */
+  readonly requireEdges: number;
+  /** Type only edges, which erase to `import type` and cannot cause a cycle. */
+  readonly typeEdges: number;
+  /** Namespaces required but provided by no file in the graph. */
+  readonly unresolved: number;
+}
+
+/**
+ * Summarises a graph.
+ *
+ * Runtime edges are counted per distinct target so that a file requiring the
+ * same module twice, or providing a namespace it also requires, does not
+ * inflate the total. This is what makes the reported numbers stable enough to
+ * assert on.
+ */
+export function summariseGraph(graph: DependencyGraph): GraphStats {
+  let requireEdges = 0;
+  let typeEdges = 0;
+  const unresolved = new Set<string>();
+
+  for (const record of graph.modules.values()) {
+    const runtimeTargets = new Set<string>();
+    for (const namespace of record.requires) {
+      const provider = graph.providers.get(namespace);
+      if (provider === undefined) {
+        unresolved.add(namespace);
+      } else if (provider !== record.path) {
+        runtimeTargets.add(provider);
+      }
+    }
+    requireEdges += runtimeTargets.size;
+
+    for (const namespace of record.requireTypes) {
+      const provider = graph.providers.get(namespace);
+      if (provider === undefined) {
+        unresolved.add(namespace);
+      } else if (provider !== record.path) {
+        typeEdges += 1;
+      }
+    }
+  }
+
+  return { files: graph.modules.size, requireEdges, typeEdges, unresolved: unresolved.size };
 }
 
 /** Converts an upstream `.js` path into its emitted `.ts` path. */
