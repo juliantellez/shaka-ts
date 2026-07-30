@@ -9,6 +9,7 @@ import {
   type DependencyGraph,
 } from './graph.ts';
 import { buildExportNameMap } from './transform/bindings.ts';
+import { extractLicenseHeader, ensureLicenseHeader } from './transform/source.ts';
 import { convertProvidesToExports } from './transform/exports.ts';
 import { convertFileLocals } from './transform/locals.ts';
 import { dropClosureOnlyCalls, removeNamespaceAnchors } from './transform/closure-cleanup.ts';
@@ -65,6 +66,7 @@ export function transpileSourceFile(
   exportNames: ReadonlyMap<string, string>,
 ): string[] {
   const record = readModule(root, relativePath);
+  const header = extractLicenseHeader(sourceFile.getFullText());
   convertProvidesToExports(sourceFile, record);
   convertFileLocals(sourceFile, record, graph, exportNames);
   dropClosureOnlyCalls(sourceFile);
@@ -78,6 +80,7 @@ export function transpileSourceFile(
   applySignatureTypes(sourceFile);
   dropClosureAnnotations(sourceFile);
   convertEnums(sourceFile);
+  ensureLicenseHeader(sourceFile, header);
   return [...unresolved];
 }
 

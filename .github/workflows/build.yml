@@ -47,3 +47,7 @@ jobs:
       # error count rises above the ratchet baseline.
       - name: checkJs ratchet
         run: npm run verify:checkjs
+
+      # Fails if any transpiled upstream file lost its license header.
+      - name: License headers
+        run: npm run verify:licenses
