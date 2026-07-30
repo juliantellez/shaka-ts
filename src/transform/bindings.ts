@@ -128,6 +128,11 @@ export function resolveImports(
   for (const namespace of record.requireTypes) {
     resolve(namespace, true);
   }
+  // Bare Closure globals like goog.DEBUG have no require, so they are resolved
+  // from what the file actually uses rather than what it declares.
+  for (const namespace of record.implicitGlobals ?? []) {
+    resolve(namespace, false);
+  }
 
   return { imports, unresolved };
 }

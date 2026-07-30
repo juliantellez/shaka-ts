@@ -16,6 +16,7 @@ export interface RuntimeModule {
 
 export const RUNTIME_MODULES: ReadonlyMap<string, RuntimeModule> = new Map([
   ['goog.Uri', { exportName: 'Uri', module: 'runtime/uri.ts' }],
+  ['goog.DEBUG', { exportName: 'DEBUG', module: 'runtime/debug.ts' }],
 ]);
 
 /**

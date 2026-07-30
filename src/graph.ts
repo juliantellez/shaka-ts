@@ -14,6 +14,19 @@ const PROVIDE_PATTERN = /goog\.provide\('([^']+)'\)/g;
 const REQUIRE_PATTERN = /goog\.require\('([^']+)'\)/g;
 const REQUIRE_TYPE_PATTERN = /goog\.requireType\('([^']+)'\)/g;
 
+/**
+ * Closure globals a file may use without a `goog.require`.
+ *
+ * `goog.DEBUG` is a compile time define, referenced bare rather than required,
+ * so it is not in the require graph. It is detected by scanning for its use so
+ * the runtime replacement can be imported only where it is actually needed.
+ */
+const IMPLICIT_GLOBALS = ['goog.DEBUG'] as const;
+
+/** Comments and strings, stripped before scanning for a bare global use. */
+const COMMENTS_AND_STRINGS =
+  /\/\*[\s\S]*?\*\/|\/\/[^\n]*|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`/g;
+
 /** What a single source file declares and depends on. */
 export interface ModuleRecord {
   /** Path relative to the upstream root, for example `lib/util/error.js`. */
@@ -24,6 +37,13 @@ export interface ModuleRecord {
   readonly requires: readonly string[];
   /** Namespaces required for types only. These erase at build time. */
   readonly requireTypes: readonly string[];
+  /**
+   * Closure globals used without a require, such as `goog.DEBUG`.
+   *
+   * Optional so a synthetic record in a test can omit it; `readModule` always
+   * sets it for a real file.
+   */
+  readonly implicitGlobals?: readonly string[];
 }
 
 export interface DependencyGraph {
@@ -68,11 +88,16 @@ export function discoverModuleFiles(rootDir: string): string[] {
 
 export function readModule(rootDir: string, relativePath: string): ModuleRecord {
   const source = readFileSync(join(rootDir, relativePath), 'utf8');
+  const code = source.replace(COMMENTS_AND_STRINGS, '');
+  const implicitGlobals = IMPLICIT_GLOBALS.filter((name) =>
+    new RegExp(`(?<![\\w$.])${name.replace('.', '\\.')}(?![\\w$])`).test(code),
+  );
   return {
     path: relativePath,
     provides: matchAll(source, PROVIDE_PATTERN),
     requires: matchAll(source, REQUIRE_PATTERN),
     requireTypes: matchAll(source, REQUIRE_TYPE_PATTERN),
+    implicitGlobals,
   };
 }
 
