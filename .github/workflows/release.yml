@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  # Required for npm provenance, which links the published package to this run.
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+
+      # Build the bundle and emit the declarations the package ships.
+      - run: npm run build
+      - run: npm run verify:dts
+
+      # Assemble the package at the tag's version.
+      - name: Assemble
+        run: node --experimental-strip-types src/pack.ts "${GITHUB_REF_NAME#v}"
+
+      # Publish with provenance. Needs an npm automation token in NPM_TOKEN, or
+      # npm trusted publishing configured for this repository.
+      - name: Publish
+        working-directory: dist/package
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
