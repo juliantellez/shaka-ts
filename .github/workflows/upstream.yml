@@ -1,0 +1,42 @@
+name: Upstream
+
+on:
+  schedule:
+    # Weekly, so a new Shaka release is noticed without anyone watching.
+    - cron: '0 7 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Detect a new Shaka release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Prints `new <version>` when upstream is ahead of the pin.
+      - name: Check upstream
+        id: check
+        run: echo "result=$(node --experimental-strip-types src/check-upstream.ts)" >> "$GITHUB_OUTPUT"
+
+      - name: Open a tracking issue
+        if: startsWith(steps.check.outputs.result, 'new ')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESULT: ${{ steps.check.outputs.result }}
+        run: |
+          VERSION="${RESULT#new }"
+          TITLE="Retarget Shaka Player $VERSION"
+          # Only open the issue if one for this version is not already open.
+          if [ -z "$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[].number')" ]; then
+            gh issue create --title "$TITLE" \
+              --body "A newer Shaka Player release ($VERSION) is available. Run \`npm run bump -- $VERSION\`, rebuild, run the tests and the oracle, and update the checkJs baseline if the count moved." \
+              --assignee juliantellez
+          fi
