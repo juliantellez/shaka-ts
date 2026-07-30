@@ -1,11 +1,10 @@
-import {
-  Node,
-  type ClassDeclaration,
-  type FunctionDeclaration,
-  type JSDocableNode,
-  type MethodDeclaration,
-  type SourceFile,
-  type TypeParameteredNode,
+import type {
+  ClassDeclaration,
+  FunctionDeclaration,
+  JSDocableNode,
+  MethodDeclaration,
+  SourceFile,
+  TypeParameteredNode,
 } from 'ts-morph';
 
 export interface TemplateResult {
