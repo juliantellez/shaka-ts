@@ -28,6 +28,10 @@ jobs:
 
       # Fetches the pinned upstream release, transpiles the whole library, and
       # bundles the core with esbuild. Fails if any import cannot be resolved.
+      # Verifies the pinned tag still matches its recorded checksum.
+      - name: Verify upstream
+        run: npm run verify:upstream
+
       - name: Build
         run: npm run build
 
