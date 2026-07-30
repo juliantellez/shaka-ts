@@ -42,3 +42,8 @@ jobs:
       # Runs Shaka's own unit tests, unmodified, against the transpiled output.
       - name: Oracle
         run: npm run test:oracle
+
+      # Type checks the transpiled output through its JSDoc and fails if the
+      # error count rises above the ratchet baseline.
+      - name: checkJs ratchet
+        run: npm run verify:checkjs
