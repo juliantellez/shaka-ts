@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolve } from 'node:path';
 
 export interface PatchResult {
   readonly applied: readonly string[];
@@ -25,10 +25,17 @@ export function listPatches(patchesDir: string): string[] {
     .sort();
 }
 
+/** The arguments to POSIX `patch` for a given patch file and package directory. */
+function patchArgs(packageDir: string, patchPath: string, extra: readonly string[] = []): string[] {
+  // `patch` rather than `git apply`, because the output tree is gitignored, and
+  // `git apply` silently skips ignored paths. `-p1` strips the a/ b/ prefixes of
+  // a git style diff; `--forward` refuses an already applied or reversed patch.
+  return ['-p1', '--forward', '-d', packageDir, '-i', patchPath, ...extra];
+}
+
 function canApply(packageDir: string, patchPath: string): boolean {
   try {
-    execFileSync('git', ['apply', '--check', patchPath], {
-      cwd: packageDir,
+    execFileSync('patch', patchArgs(packageDir, patchPath, ['--dry-run']), {
       stdio: ['ignore', 'ignore', 'ignore'],
     });
     return true;
@@ -52,13 +59,14 @@ export function applyPatches(packageDir: string, patchesDir: string): PatchResul
   const failed: string[] = [];
 
   for (const name of listPatches(patchesDir)) {
-    const patchPath = join(patchesDir, name);
+    // Absolute, because the patch is applied with the package directory as the
+    // working directory, so a path relative to the caller would not resolve.
+    const patchPath = resolve(patchesDir, name);
     if (!canApply(packageDir, patchPath)) {
       failed.push(name);
       continue;
     }
-    execFileSync('git', ['apply', patchPath], {
-      cwd: packageDir,
+    execFileSync('patch', patchArgs(packageDir, patchPath), {
       stdio: ['ignore', 'ignore', 'pipe'],
     });
     applied.push(name);

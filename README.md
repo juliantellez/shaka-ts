@@ -46,6 +46,30 @@ pinned upstream release  (fetched, never committed here)
 Upstream Shaka source is never committed to this repository. It is fetched at build time and
 verified against a recorded checksum.
 
+## Testing
+
+There are two tiers.
+
+The **oracle** runs Shaka's own unmodified util unit specs in a DOM-like environment without a real
+browser, so it fits in the normal test pass and gates every build. If the transform changed
+behaviour in that layer, the oracle goes red.
+
+The **suite** loads the whole transpiled library as a global in real headless Chrome through Karma
+and asserts its public surface resolves on `window.shaka`, one spec per symbol, plus that the
+polyfills install without throwing. This is the real browser check the oracle cannot be: it runs the
+library's top level module initialisation the way a consumer's browser does. That is how it earns
+its keep. It found a transpiler bug on the first run: a polyfill's static self reference bound to a
+shadowing parameter, so the library threw during initialisation before `window.shaka` was ever set.
+The check would have failed on it, and now guards against the whole class.
+
+Running Shaka's own behavioural specs against the library is the next tier. Those specs are written
+for Shaka's test harness (the `shaka.test.*` helpers, custom matchers and asset servers) and are
+coupled to each other and to a real playback pipeline, so standing them up is a port in its own
+right, tracked separately. This surface check is the first tier of that work: it proves the library
+loads and initialises in the real runtime.
+
+Run it with `npm run build` then `npm run test:suite`.
+
 ## Why it is tractable
 
 The obvious objection is that rewriting 125,000 lines of someone else's player is madness.

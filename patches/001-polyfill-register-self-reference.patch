@@ -1,0 +1,27 @@
+diff --git a/lib/polyfill/all.ts b/lib/polyfill/all.ts
+index e76937c..ca1c101 100644
+--- a/lib/polyfill/all.ts
++++ b/lib/polyfill/all.ts
+@@ -11,9 +11,9 @@ export class polyfill {
+    * Install all polyfills.
+    */
+   static installAll() {
+-    for (const polyfill of polyfill.polyfills_) {
++    for (const item of polyfill.polyfills_) {
+       try {
+-        polyfill.callback();
++        item.callback();
+       } catch (error) {
+         log.alwaysWarn('Error installing polyfill!', error);
+       }
+@@ -27,8 +27,8 @@ export class polyfill {
+    * @param {number=} priority An optional number priority.  Higher priorities
+    *   will be executed before lower priority ones.  Default is 0.
+    */
+-  static register(polyfill: () => void, priority?: number) {
+-    const newItem = {priority: priority || 0, callback: polyfill};
++  static register(callback: () => void, priority?: number) {
++    const newItem = {priority: priority || 0, callback};
+     for (let i = 0; i < polyfill.polyfills_.length; i++) {
+       const item = polyfill.polyfills_[i];
+       if (item.priority < newItem.priority) {

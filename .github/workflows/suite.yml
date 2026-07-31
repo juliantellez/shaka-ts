@@ -1,0 +1,45 @@
+name: Suite
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: suite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    name: Run Shaka's specs in headless Chrome
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Real Chrome, because the specs drive browser APIs happy-dom cannot.
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          install-dependencies: true
+
+      # Transpiles the library and applies the patch overlay, which the suite
+      # then bundles as a global for the specs to reach through `window.shaka`.
+      - name: Build
+        run: npm run build
+
+      # Runs Shaka's unmodified unit specs against the transpiled library and
+      # fails only if the passing count drops below the ratchet floor.
+      - name: Suite
+        run: npm run test:suite
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
