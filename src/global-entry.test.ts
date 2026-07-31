@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderGlobalEntry, type GlobalAssignment } from './global-entry.ts';
+import { hasRuntimeExport, renderGlobalEntry, type GlobalAssignment } from './global-entry.ts';
 
 const assignments: GlobalAssignment[] = [
   {
@@ -42,5 +42,29 @@ describe('renderGlobalEntry', () => {
     set('shaka.util.BufferUtils', 'buffer');
     set('shaka.Player', 'player');
     expect(globals).toEqual({ util: { BufferUtils: 'buffer' }, Player: 'player' });
+  });
+});
+
+describe('hasRuntimeExport', () => {
+  it('should accept a class, function, const, let or var export', () => {
+    expect(hasRuntimeExport('export class Player {}', 'Player')).toBe(true);
+    expect(hasRuntimeExport('export function make() {}', 'make')).toBe(true);
+    expect(hasRuntimeExport('export const VERSION = 1;', 'VERSION')).toBe(true);
+    expect(hasRuntimeExport('export async function load() {}', 'load')).toBe(true);
+  });
+
+  it('should accept a re-export in a brace list', () => {
+    expect(hasRuntimeExport("export { Foo, Bar } from './x.ts';", 'Bar')).toBe(true);
+  });
+
+  it('should reject a type-only export, which has no runtime value', () => {
+    expect(hasRuntimeExport('export type StorageCellHandle = string;', 'StorageCellHandle')).toBe(
+      false,
+    );
+    expect(hasRuntimeExport('export interface Config {}', 'Config')).toBe(false);
+  });
+
+  it('should not match a different name that shares a prefix', () => {
+    expect(hasRuntimeExport('export class PlayerHead {}', 'Player')).toBe(false);
   });
 });

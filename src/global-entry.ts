@@ -6,6 +6,22 @@ import { buildExportNameMap } from './transform/bindings.ts';
 /** Namespaces under the UI layer, left out because they need the generated locales. */
 const UI_PREFIX = 'shaka.ui.';
 
+/**
+ * Whether a transpiled module has a runtime export for a name.
+ *
+ * Some provided namespaces are Closure `@typedef`s, which become `export type`
+ * with no runtime value, so importing them into the global entry would fail the
+ * bundle. This keeps only the ones that actually export something at runtime.
+ */
+export function hasRuntimeExport(source: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const declaration = new RegExp(
+    `export\\s+(?:default\\s+)?(?:async\\s+)?(?:class|function|const|let|var)\\s+${escaped}\\b`,
+  );
+  const reexport = new RegExp(`export\\s*\\{[^}]*\\b${escaped}\\b[^}]*\\}`);
+  return declaration.test(source) || reexport.test(source);
+}
+
 /** One transpiled namespace to hang on the global `shaka` object. */
 export interface GlobalAssignment {
   /** The dotted namespace, for example `shaka.util.BufferUtils`. */
@@ -14,18 +30,6 @@ export interface GlobalAssignment {
   readonly specifier: string;
   /** The name the value is exported under in its module. */
   readonly exportName: string;
-}
-
-/**
- * Reads the upstream entry's require list.
- *
- * Shaka lists every module of the full library in `shaka-player.uncompiled.js`.
- * That list is the set of namespaces the global build should expose, since many
- * register themselves by side effect and are not reached from `Player` alone.
- */
-function readEntryRequires(root: string): string[] {
-  const source = readFileSync(join(root, 'shaka-player.uncompiled.js'), 'utf8');
-  return [...source.matchAll(/goog\.require\('([^']+)'\)/g)].map((match) => match[1] ?? '');
 }
 
 /**
@@ -66,27 +70,38 @@ export function renderGlobalEntry(assignments: readonly GlobalAssignment[]): str
 /**
  * Builds the global namespace entry for a transpiled tree.
  *
+ * Exposes every provided namespace, not just the ones the uncompiled entry
+ * requires directly, because the specs reach namespaces that are only pulled in
+ * transitively (a util spec reads `shaka.util.BufferUtils`, which nothing
+ * requires at the top level). The UI layer is left out because it needs the
+ * generated locales, which the core build does not produce.
+ *
  * `importPrefix` is prepended to each module's output path so the entry can live
  * outside the package directory (the suite writes it to `build/suite`, so the
- * checkJs ratchet over `build/package` never sees it).
+ * checkJs ratchet over `build/package` never sees it). `packageDir` is the
+ * transpiled output the specifiers point at, read to skip type only namespaces.
  */
-export function buildGlobalEntry(root: string, importPrefix: string): string {
+export function buildGlobalEntry(root: string, importPrefix: string, packageDir: string): string {
   const graph = buildGraph(root, discoverModuleFiles(root));
   const exportNames = buildExportNameMap(graph);
 
   const assignments: GlobalAssignment[] = [];
-  for (const namespace of readEntryRequires(root)) {
+  for (const [namespace, provider] of [...graph.providers].sort()) {
     if (namespace.startsWith(UI_PREFIX)) {
       continue;
     }
-    const provider = graph.providers.get(namespace);
     const exportName = exportNames.get(namespace);
-    if (provider === undefined || exportName === undefined) {
+    if (exportName === undefined) {
+      continue;
+    }
+    const outputPath = toOutputPath(provider);
+    const source = readFileSync(join(packageDir, outputPath), 'utf8');
+    if (!hasRuntimeExport(source, exportName)) {
       continue;
     }
     assignments.push({
       namespace,
-      specifier: `${importPrefix}${toOutputPath(provider)}`,
+      specifier: `${importPrefix}${outputPath}`,
       exportName,
     });
   }

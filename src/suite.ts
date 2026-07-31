@@ -3,24 +3,31 @@ import { resolve } from 'node:path';
 import { build as esbuild } from 'esbuild';
 import karma from 'karma';
 import { buildGlobalEntry } from './global-entry.ts';
-import { SUITE_PASS_FLOOR, evaluateSuite, type SuiteResult } from './suite-baseline.ts';
+import { PUBLIC_SURFACE, renderSurfaceSpec } from './surface.ts';
+import { evaluateSuite, type SuiteResult } from './suite-baseline.ts';
 
 const UPSTREAM = 'upstream/shaka-player';
+const PACKAGE_DIR = 'build/package';
 const SUITE_DIR = 'build/suite';
 const GLOBAL_ENTRY = `${SUITE_DIR}/shaka-global.ts`;
 const GLOBAL_BUNDLE = `${SUITE_DIR}/shaka-global.js`;
+const SURFACE_SPEC = `${SUITE_DIR}/library-surface.spec.js`;
+
+// The surface spec adds two specs beyond one per symbol: the global is defined,
+// and the polyfills install without throwing. Every one must pass and run.
+const EXPECTED_SPECS = PUBLIC_SURFACE.length + 2;
 
 /**
- * Bundles the whole transpiled library as a global.
+ * Bundles the whole transpiled library as a global and writes the surface spec.
  *
  * The specs reach the library through `window.shaka`, so this rebuilds that
  * global from the transpiled modules and bundles it as a classic script Karma
- * can load. Written into build/suite, outside the package the checkJs ratchet
- * scans, so the generated entry never counts against it.
+ * can load. Both are written into build/suite, outside the package the checkJs
+ * ratchet scans, so neither counts against it.
  */
-async function buildGlobalBundle(): Promise<void> {
+async function buildSuiteInputs(): Promise<void> {
   await mkdir(SUITE_DIR, { recursive: true });
-  await writeFile(GLOBAL_ENTRY, buildGlobalEntry(UPSTREAM, '../package/'), 'utf8');
+  await writeFile(GLOBAL_ENTRY, buildGlobalEntry(UPSTREAM, '../package/', PACKAGE_DIR), 'utf8');
   await esbuild({
     entryPoints: [GLOBAL_ENTRY],
     bundle: true,
@@ -28,6 +35,7 @@ async function buildGlobalBundle(): Promise<void> {
     target: 'es2017',
     outfile: GLOBAL_BUNDLE,
   });
+  await writeFile(SURFACE_SPEC, renderSurfaceSpec(PUBLIC_SURFACE), 'utf8');
 }
 
 /** Runs Karma once and resolves with the run's counts. */
@@ -60,14 +68,13 @@ async function runKarma(): Promise<SuiteResult> {
 }
 
 async function main(): Promise<void> {
-  await buildGlobalBundle();
+  await buildSuiteInputs();
   const result = await runKarma();
-  const verdict = evaluateSuite(result);
+  const verdict = evaluateSuite(result, EXPECTED_SPECS, EXPECTED_SPECS);
 
   process.stdout.write(
     `suite: ${String(result.success)} passed, ${String(result.failed)} failed, ` +
-      `${String(result.skipped)} skipped, ${String(verdict.executed)} executed ` +
-      `(floor ${String(SUITE_PASS_FLOOR)})\n`,
+      `${String(verdict.executed)} executed (need ${String(EXPECTED_SPECS)})\n`,
   );
 
   if (!verdict.ok) {
