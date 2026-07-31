@@ -29,7 +29,9 @@ module.exports = (config) => {
     customLaunchers: {
       ShakaChromeHeadless: {
         base: 'ChromeHeadless',
-        flags: ['--no-sandbox', '--disable-gpu', '--mute-audio'],
+        // --disable-dev-shm-usage keeps Chrome off the small /dev/shm on CI
+        // runners, where it otherwise crashes partway through a heavy run.
+        flags: ['--no-sandbox', '--disable-gpu', '--mute-audio', '--disable-dev-shm-usage'],
       },
     },
     files: [GLOBAL_BUNDLE, { pattern: UNIT_SPECS, included: true, watched: false }],
