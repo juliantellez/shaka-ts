@@ -1,0 +1,104 @@
+name: Publish versions
+
+# Transpiles every target version in src/versions.ts and publishes each to npm
+# as shaka-ts@<upstream-version>. Manual only: merging this never publishes.
+# Publishing needs an NPM_TOKEN repo secret; without it the job builds and
+# verifies each version but skips the publish step.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Required for npm provenance, which links the published package to this run.
+  id-token: write
+
+jobs:
+  matrix:
+    name: List target versions
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.list.outputs.versions }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Single source of truth: the published set lives in src/versions.ts.
+      - id: list
+        run: echo "versions=$(node --experimental-strip-types src/versions.ts)" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish ${{ matrix.version }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJSON(needs.matrix.outputs.versions) }}
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+
+      # Retarget the whole pipeline at this version, so every verify step below
+      # reads its recorded checksum and baseline from src/versions.ts.
+      - name: Retarget
+        run: npm run bump -- ${{ matrix.version }}
+
+      - name: Verify upstream
+        run: npm run verify:upstream
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle size
+        run: npm run verify:size
+
+      - name: Oracle
+        run: npm run test:oracle
+
+      - name: Declarations
+        run: npm run verify:dts
+
+      - name: checkJs ratchet
+        run: npm run verify:checkjs
+
+      # Assemble the publishable package at the upstream version.
+      - name: Assemble
+        run: node --experimental-strip-types src/pack.ts ${{ matrix.version }}
+
+      # Skip if this version is already on npm, so re-running is idempotent.
+      - name: Check npm for this version
+        id: published
+        run: |
+          if npm view "shaka-ts@${{ matrix.version }}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        if: ${{ env.NPM_TOKEN != '' && steps.published.outputs.exists == 'false' }}
+        working-directory: dist/package
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Note a skipped publish
+        if: ${{ env.NPM_TOKEN == '' || steps.published.outputs.exists == 'true' }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "NPM_TOKEN is not set; built and verified ${{ matrix.version }} but did not publish."
+          else
+            echo "shaka-ts@${{ matrix.version }} is already on npm; nothing to publish."
+          fi

@@ -1,5 +1,5 @@
 import { fetchUpstream } from './fetch.ts';
-import { RECORDED_CHECKSUM, computeChecksum, verifyChecksum } from './upstream-checksum.ts';
+import { computeChecksum, recordedChecksum, verifyChecksum } from './upstream-checksum.ts';
 
 /**
  * Fetches the pinned release and verifies it against the recorded checksum.
@@ -13,9 +13,7 @@ async function main(): Promise<void> {
 
   if (process.argv.includes('--update')) {
     process.stdout.write(`${computeChecksum(root)}\n`);
-    process.stdout.write(
-      'update RECORDED_CHECKSUM in src/upstream-checksum.ts to the value above\n',
-    );
+    process.stdout.write("update this version's checksum in src/versions.ts to the value above\n");
     return;
   }
 
@@ -26,7 +24,7 @@ async function main(): Promise<void> {
   }
 
   process.stderr.write(
-    `upstream checksum mismatch\n  expected ${RECORDED_CHECKSUM}\n  actual   ${result.actual}\n` +
+    `upstream checksum mismatch\n  expected ${recordedChecksum()}\n  actual   ${result.actual}\n` +
       `The pinned tag changed since the checksum was recorded. Review the difference, then run\n` +
       `npm run checksum:update if the change is expected.\n`,
   );
