@@ -1,11 +1,17 @@
 name: Publish versions
 
-# Transpiles every target version in src/versions.ts and publishes each to npm
+# Transpiles the target versions in src/versions.ts and publishes each to npm
 # as shaka-ts@<upstream-version>. Manual only: merging this never publishes.
 # Publishing needs an NPM_TOKEN repo secret; without it the job builds and
-# verifies each version but skips the publish step.
+# verifies each version but skips the publish step. Pass a single version to
+# publish just that one, for example a first test publish.
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Publish only this version (leave blank to publish all target versions)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -25,9 +31,22 @@ jobs:
         with:
           node-version: 22
 
-      # Single source of truth: the published set lives in src/versions.ts.
+      # Single source of truth: the published set lives in src/versions.ts. A
+      # single version input publishes just that one, after checking it is a
+      # known target so a typo cannot reach the publish step.
       - id: list
-        run: echo "versions=$(node --experimental-strip-types src/versions.ts)" >> "$GITHUB_OUTPUT"
+        env:
+          ONLY: ${{ inputs.version }}
+        run: |
+          ALL="$(node --experimental-strip-types src/versions.ts)"
+          if [ -z "$ONLY" ]; then
+            echo "versions=$ALL" >> "$GITHUB_OUTPUT"
+          elif echo "$ALL" | grep -q "\"$ONLY\""; then
+            echo "versions=[\"$ONLY\"]" >> "$GITHUB_OUTPUT"
+          else
+            echo "version $ONLY is not a target in src/versions.ts; targets are $ALL" >&2
+            exit 1
+          fi
 
   publish:
     name: Publish ${{ matrix.version }}
