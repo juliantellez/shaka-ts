@@ -3,7 +3,15 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  globalIgnores(['build/**', 'dist/**', 'upstream/**', 'coverage/**', 'node_modules/**']),
+  globalIgnores([
+    'build/**',
+    'dist/**',
+    'upstream/**',
+    'coverage/**',
+    'node_modules/**',
+    // Karma requires its config as CommonJS, so it is not part of the typed project.
+    'karma.conf.cjs',
+  ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {

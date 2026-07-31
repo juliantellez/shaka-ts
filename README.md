@@ -46,6 +46,25 @@ pinned upstream release  (fetched, never committed here)
 Upstream Shaka source is never committed to this repository. It is fetched at build time and
 verified against a recorded checksum.
 
+## Testing
+
+There are two tiers, both running Shaka's own unmodified specs against the transpiled output.
+
+The **oracle** is fast. It runs the pure logic util specs in a DOM-like environment without a real
+browser, so it fits in the normal test pass and gates every build. If the transform changed
+behaviour in that layer, the oracle goes red.
+
+The **full suite** runs all of Shaka's unit specs in real headless Chrome through Karma, reaching the
+whole transpiled library on `window.shaka`. Most of them fail today, and that is expected: the test
+harness layer (the `shaka.test.*` helpers, custom matchers and asset servers) is not wired up yet,
+and the media specs need a real playback pipeline. So the suite is a ratchet, not a pass or fail
+gate: it records how many specs pass now and fails only if that count drops. About 80 pass today,
+mostly the logic specs that need no harness. Running the whole library at once is also how the suite
+earns its keep: it surfaced a transpiler bug where a polyfill's static self-reference bound to a
+shadowing parameter, which stopped the library initialising at all.
+
+Run it with `npm run build` then `npm run test:suite`.
+
 ## Why it is tractable
 
 The obvious objection is that rewriting 125,000 lines of someone else's player is madness.
