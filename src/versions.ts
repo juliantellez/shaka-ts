@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
 /**
  * The Shaka Player releases this toolchain transpiles and publishes.
  *
@@ -5,10 +9,11 @@
  * version equals the Shaka version it was transpiled from. That makes selection
  * obvious: a consumer on Shaka 4.16.x installs `shaka-ts@4.16.43`.
  *
- * Every entry has been built from its pinned tag and passes the oracle. The
- * recorded values are per version because they are measured from that release:
- * the `checksum` fixes the exact upstream source, and `checkjsBaseline` is the
- * strict `checkJs` ratchet ceiling for the output that release produces.
+ * The recorded values are per version because they are measured from that
+ * release: the `checksum` fixes the exact upstream source, and `checkjsBaseline`
+ * is the strict `checkJs` ratchet ceiling for the output that release produces.
+ * The set lives in `versions.json` so the auto publish workflow can add an entry
+ * for a new release without editing code.
  */
 export interface VersionTarget {
   /** Semantic version, equal to the upstream tag without its `v` prefix. */
@@ -19,31 +24,55 @@ export interface VersionTarget {
   readonly checkjsBaseline: number;
 }
 
+/** Path to the version registry, next to this module. */
+export const REGISTRY_PATH = join(dirname(fileURLToPath(import.meta.url)), 'versions.json');
+
+/**
+ * A brand new release will not transpile perfectly, but a doubling of the
+ * `checkJs` count means it transpiled badly enough not to trust. The auto
+ * publish flow refuses to publish above this ceiling, so a broken retarget
+ * fails loudly instead of shipping. The recorded baselines sit near 7,500.
+ */
+export const AUTOPUBLISH_CHECKJS_CEILING = 8_500;
+
+/** The margin added over the observed count when recording a new baseline. */
+export const CHECKJS_BASELINE_MARGIN = 30;
+
+function readRegistry(): VersionTarget[] {
+  const raw = JSON.parse(readFileSync(REGISTRY_PATH, 'utf8')) as VersionTarget[];
+  return [...raw].sort((a, b) => compareVersions(a.version, b.version));
+}
+
 /**
  * The published set, in ascending version order.
  *
  * The 5.x line is not published yet: its device detection modules do not
  * transpile cleanly (the core entry re-exports an `AllDevices` that resolves to
- * undefined), so it needs transpiler work before it can be trusted. It is
- * tracked separately rather than shipped broken.
+ * undefined), so it needs transpiler work before it can be trusted.
  */
-export const TARGET_VERSIONS: readonly VersionTarget[] = [
-  {
-    version: '4.15.55',
-    checksum: 'b7ab2c4aa78a7f2bcdb267f35e218ea293f7204cc0da74d514858c7e3e1aa626',
-    checkjsBaseline: 7_480,
-  },
-  {
-    version: '4.16.5',
-    checksum: 'b29ad3a9291a072b2c2c3d52d2e3d17399308ad6fa0057453ec478de3643c82c',
-    checkjsBaseline: 7_520,
-  },
-  {
-    version: '4.16.43',
-    checksum: 'e219baf02f7a5f1a8598028472ea6ca2058cbbe8e6115e4567918d4570dbc527',
-    checkjsBaseline: 7_515,
-  },
-];
+export const TARGET_VERSIONS: readonly VersionTarget[] = readRegistry();
+
+/** Parses a three part semantic version into numbers, throwing if malformed. */
+function parts(version: string): [number, number, number] {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) {
+    throw new Error(`not a three part semantic version: ${version}`);
+  }
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+/** Orders two semantic versions ascending: negative when `a` is older. */
+export function compareVersions(a: string, b: string): number {
+  const left = parts(a);
+  const right = parts(b);
+  for (let index = 0; index < 3; index += 1) {
+    const delta = (left[index] ?? 0) - (right[index] ?? 0);
+    if (delta !== 0) {
+      return delta;
+    }
+  }
+  return 0;
+}
 
 /** Looks up a target by version, or undefined if it is not a published one. */
 export function findVersionTarget(version: string): VersionTarget | undefined {
@@ -64,6 +93,25 @@ export function requireVersionTarget(version: string): VersionTarget {
     throw new Error(`no recorded target for ${version}; published versions are ${known}`);
   }
   return target;
+}
+
+/**
+ * Returns the registry with `entry` added or replaced, in ascending order.
+ *
+ * Pure so onboarding a new release is testable without touching disk. An
+ * existing version is replaced, so re-recording a version is idempotent.
+ */
+export function upsertVersionTarget(
+  targets: readonly VersionTarget[],
+  entry: VersionTarget,
+): VersionTarget[] {
+  const others = targets.filter((target) => target.version !== entry.version);
+  return [...others, entry].sort((a, b) => compareVersions(a.version, b.version));
+}
+
+/** The recorded checkJs baseline for an observed count: the count plus a margin. */
+export function baselineForCount(count: number): number {
+  return count + CHECKJS_BASELINE_MARGIN;
 }
 
 /** Prints the published versions as a JSON array for the publish matrix. */

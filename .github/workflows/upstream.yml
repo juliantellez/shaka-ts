@@ -8,12 +8,17 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   check:
     name: Detect a new Shaka release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      has_token: ${{ steps.token.outputs.present }}
     steps:
       - uses: actions/checkout@v4
 
@@ -21,22 +26,135 @@ jobs:
         with:
           node-version: 22
 
-      # Prints `new <version>` when upstream is ahead of the pin.
+      # Prints `new <version>` when upstream is ahead of the pin, and exposes the
+      # bare version as an output so the publish job can pick it up.
       - name: Check upstream
         id: check
-        run: echo "result=$(node --experimental-strip-types src/check-upstream.ts)" >> "$GITHUB_OUTPUT"
+        run: |
+          RESULT="$(node --experimental-strip-types src/check-upstream.ts)"
+          echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+          if [ "${RESULT#new }" != "$RESULT" ]; then
+            echo "version=${RESULT#new }" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Publishing is gated on this: with no npm token the publish job stays
+      # dormant, so this workflow never publishes until a token is added.
+      - name: Detect npm token
+        id: token
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Open a tracking issue
         if: startsWith(steps.check.outputs.result, 'new ')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RESULT: ${{ steps.check.outputs.result }}
+          VERSION: ${{ steps.check.outputs.version }}
         run: |
-          VERSION="${RESULT#new }"
           TITLE="Retarget Shaka Player $VERSION"
           # Only open the issue if one for this version is not already open.
           if [ -z "$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[].number')" ]; then
             gh issue create --title "$TITLE" \
-              --body "A newer Shaka Player release ($VERSION) is available. Run \`npm run bump -- $VERSION\`, rebuild, run the tests and the oracle, and update the checkJs baseline if the count moved." \
+              --body "A newer Shaka Player release ($VERSION) is available. When an npm token is configured the publish job below retargets and publishes it automatically; otherwise run \`npm run bump -- $VERSION\`, rebuild, and record it with \`node --experimental-strip-types src/onboard-version.ts $VERSION\`." \
               --assignee juliantellez
           fi
+
+  publish:
+    name: Transpile and publish the new release
+    needs: check
+    # Only run for a genuinely new release, and only when publishing is enabled.
+    if: ${{ needs.check.outputs.version != '' && needs.check.outputs.has_token == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      # Required for npm provenance, which links the published package to this run.
+      id-token: write
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+
+      # Retarget the whole pipeline at the new version.
+      - name: Retarget the pin
+        run: npm run bump -- "$VERSION"
+
+      - name: Build
+        run: npm run build
+
+      # Guardrail: the oracle must still pass, or the transpile changed behaviour.
+      - name: Oracle
+        run: npm run test:oracle
+
+      - name: Bundle size
+        run: npm run verify:size
+
+      # Record the new release's checksum and checkJs baseline. Fails if the
+      # checkJs count is past the auto publish ceiling, so a badly transpiled
+      # release does not get published.
+      - name: Record the version
+        run: node --experimental-strip-types src/onboard-version.ts "$VERSION"
+
+      # With the entry recorded, the standard verifies run against it.
+      - name: Verify upstream
+        run: npm run verify:upstream
+      - name: checkJs ratchet
+        run: npm run verify:checkjs
+      - name: Declarations
+        run: npm run verify:dts
+
+      # Assemble the publishable package at the upstream version.
+      - name: Assemble
+        run: node --experimental-strip-types src/pack.ts "$VERSION"
+
+      # Skip if this version is already on npm, so re-running is idempotent.
+      - name: Check npm for this version
+        id: published
+        run: |
+          if npm view "shaka-ts@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        if: ${{ steps.published.outputs.exists == 'false' }}
+        working-directory: dist/package
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Record what was published back into the repo, so its state tracks npm.
+      # Opened with GITHUB_TOKEN, so a maintainer kicks the record PR's checks.
+      - name: Open a PR recording the version
+        run: |
+          BRANCH="auto/retarget-$VERSION"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "branch $BRANCH already exists; nothing to open"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add src/upstream.ts src/versions.json
+          git commit -m "chore: retarget shaka player $VERSION"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "chore: retarget shaka player $VERSION" \
+            --body "Records Shaka $VERSION, published to npm as shaka-ts@$VERSION by the upstream workflow. Bumps the pin and adds the recorded checksum and checkJs baseline. Re-run the checks to build against the new pin." \
+            --assignee juliantellez
