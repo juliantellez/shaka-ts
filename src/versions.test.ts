@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { UPSTREAM } from './upstream.ts';
 import {
+  CHECKJS_BASELINE_MARGIN,
   TARGET_VERSIONS,
+  baselineForCount,
+  compareVersions,
   findVersionTarget,
   requireVersionTarget,
+  upsertVersionTarget,
   type VersionTarget,
 } from './versions.ts';
 
@@ -47,5 +51,44 @@ describe('requireVersionTarget', () => {
 
   it('should throw naming the published versions for an unknown one', () => {
     expect(() => requireVersionTarget('9.9.9')).toThrow(/9\.9\.9.*4\.16\.5/);
+  });
+});
+
+describe('compareVersions', () => {
+  it('should order by major, then minor, then patch', () => {
+    expect(compareVersions('4.16.5', '4.16.43')).toBeLessThan(0);
+    expect(compareVersions('4.16.5', '4.15.55')).toBeGreaterThan(0);
+    expect(compareVersions('5.0.0', '4.99.99')).toBeGreaterThan(0);
+    expect(compareVersions('4.16.5', '4.16.5')).toBe(0);
+  });
+});
+
+describe('upsertVersionTarget', () => {
+  const target = (version: string): VersionTarget => ({
+    version,
+    checksum: 'a'.repeat(64),
+    checkjsBaseline: 7_500,
+  });
+
+  it('should insert a new version in ascending order', () => {
+    const next = upsertVersionTarget([target('4.16.5'), target('4.16.43')], target('4.16.20'));
+    expect(next.map((entry) => entry.version)).toEqual(['4.16.5', '4.16.20', '4.16.43']);
+  });
+
+  it('should replace an existing version rather than duplicate it', () => {
+    const replacement: VersionTarget = { ...target('4.16.5'), checkjsBaseline: 7_000 };
+    const next = upsertVersionTarget([target('4.16.5'), target('4.16.43')], replacement);
+    expect(next.map((entry) => entry.version)).toEqual(['4.16.5', '4.16.43']);
+    expect(findByVersion(next, '4.16.5')?.checkjsBaseline).toBe(7_000);
+  });
+
+  function findByVersion(targets: VersionTarget[], version: string): VersionTarget | undefined {
+    return targets.find((entry) => entry.version === version);
+  }
+});
+
+describe('baselineForCount', () => {
+  it('should add the margin over the observed count', () => {
+    expect(baselineForCount(7_450)).toBe(7_450 + CHECKJS_BASELINE_MARGIN);
   });
 });

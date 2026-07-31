@@ -75,7 +75,7 @@ regression is an early milestone rather than a late surprise.
 Rather than one pinned release, the toolchain transpiles several Shaka versions and publishes each
 to npm under the same version as upstream. So `shaka-ts@4.16.43` is Shaka 4.16.43 transpiled, and a
 consumer picks the version that matches the Shaka they were on. The published set lives in
-[`src/versions.ts`](src/versions.ts); today it is the recent 4.x line:
+[`src/versions.json`](src/versions.json); today it is the recent 4.x line:
 
 - 4.15.55
 - 4.16.5
@@ -86,9 +86,19 @@ Each entry records the checksum of the exact upstream source it builds from and 
 oracle. The 5.x line is not published yet: its device detection modules do not transpile cleanly,
 so it needs transpiler work before it can be trusted.
 
-Adding a version is one edit to that list plus its recorded checksum and baseline. The
+Adding a version is one entry in that file plus its recorded checksum and baseline. The
 `Publish versions` workflow builds and verifies every target and publishes any that are not already
 on npm.
+
+## Keeping current
+
+A weekly workflow checks whether upstream Shaka has released a version newer than the pin. It always
+opens a tracking issue. When an npm token is configured it also retargets the pipeline at the new
+version, builds it, and publishes `shaka-ts@<version>` on its own, then opens a pull request that
+records the new checksum and baseline so the repository tracks what is on npm. Two guardrails stop a
+bad release from shipping: the oracle must still pass, and the `checkJs` count must stay under a
+ceiling, so a version that does not transpile cleanly fails loudly instead of publishing. With no
+token the publish step stays dormant and only the tracking issue is opened.
 
 ## Status
 
