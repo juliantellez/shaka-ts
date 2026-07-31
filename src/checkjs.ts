@@ -1,10 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { UPSTREAM } from './upstream.ts';
+import { requireVersionTarget } from './versions.ts';
 
 /**
- * The current count of type errors when checking the transpiled output under
- * full `strict` mode.
+ * The count of type errors when checking a release's transpiled output under
+ * full `strict` mode, as a ratchet ceiling.
  *
  * This is a ratchet, not a target. Without strict, the transpiled output checks
  * nearly clean, but `strict` turns on `strictNullChecks` and `noImplicitAny`,
@@ -14,10 +16,14 @@ import { join } from 'node:path';
  * overlay and further type passes; the gate only fails if the count rises, so no
  * change can quietly make the types worse.
  *
- * Set a little above the observed count, because tsc's count wobbles by a few
- * between runs. The gate is meant to catch a regression of hundreds.
+ * The baseline is per version because each release produces a different output;
+ * each is stored in `versions.ts` a little above the observed count, because
+ * tsc's count wobbles by a few between runs. The gate catches a regression of
+ * hundreds, not a wobble of ones.
  */
-export const CHECKJS_BASELINE = 7_520;
+export function checkjsBaseline(version: string = UPSTREAM.version): number {
+  return requireVersionTarget(version).checkjsBaseline;
+}
 
 const TSCONFIG = {
   compilerOptions: {

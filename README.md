@@ -70,16 +70,34 @@ The known risk is bundle size. Closure's property renaming and dead code elimina
 786 KB player build from roughly 3.8 MB of source, and esbuild will not match that. Measuring the
 regression is an early milestone rather than a late surprise.
 
+## Versions
+
+Rather than one pinned release, the toolchain transpiles several Shaka versions and publishes each
+to npm under the same version as upstream. So `shaka-ts@4.16.43` is Shaka 4.16.43 transpiled, and a
+consumer picks the version that matches the Shaka they were on. The published set lives in
+[`src/versions.ts`](src/versions.ts); today it is the recent 4.x line:
+
+- 4.15.55
+- 4.16.5
+- 4.16.43
+
+Each entry records the checksum of the exact upstream source it builds from and its own strict
+`checkJs` ratchet ceiling, both measured from that release. Every entry builds and passes the
+oracle. The 5.x line is not published yet: its device detection modules do not transpile cleanly,
+so it needs transpiler work before it can be trusted.
+
+Adding a version is one edit to that list plus its recorded checksum and baseline. The
+`Publish versions` workflow builds and verifies every target and publishes any that are not already
+on npm.
+
 ## Status
 
-Early. Nothing is built yet. The roadmap is tracked in the open:
+The pipeline is built and the roadmap through the multi-version publishing milestone is done.
+Publishing is wired but not switched on: nothing is on npm until an automation token is added to the
+repository, so treat the package as not yet installable. Progress is tracked in the open:
 
 - [Project board](https://github.com/users/juliantellez/projects/1)
 - [Milestones](https://github.com/juliantellez/shaka-ts/milestones)
-
-Work starts with a time boxed [spike](https://github.com/juliantellez/shaka-ts/issues/35) that
-takes ten representative files end to end and measures the bundle delta, because that is what
-decides whether the rest is worth building.
 
 ## Licence
 
