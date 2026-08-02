@@ -59,6 +59,13 @@ const EMPTY_JSDOC = /[ \t]*\/\*\*[\s*]*?\*\/[ \t]*\r?\n?/g;
 export function dropClosureAnnotations(sourceFile: SourceFile): AnnotationResult {
   let overrides = 0;
   for (const classDeclaration of sourceFile.getClasses()) {
+    // The `override` modifier only applies to a member that overrides a base
+    // class member. Closure also uses `@override` for interface methods, but a
+    // class that implements an interface without extending a class cannot carry
+    // the keyword, so those are left for the tag removal below.
+    if (classDeclaration.getExtends() === undefined) {
+      continue;
+    }
     for (const method of classDeclaration.getMethods()) {
       const hasOverride = method
         .getJsDocs()
