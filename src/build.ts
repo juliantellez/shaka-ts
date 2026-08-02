@@ -71,6 +71,8 @@ async function writeTree(root: string): Promise<number> {
   // Ambient declaration for the Closure externs, so `shaka.extern.*` type
   // references in the library resolve under the checkJs pass.
   await writeFile(join(OUTPUT_DIR, 'externs.d.ts'), buildExternsDeclaration(root), 'utf8');
+  // Vendor and experimental DOM APIs the standard library does not declare.
+  await cp('src/dom.d.ts', join(OUTPUT_DIR, 'dom.d.ts'));
 
   process.stdout.write(`transpiled ${String(files.length)} files\n`);
   if (unresolved.size > 0) {
