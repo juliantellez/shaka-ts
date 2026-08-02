@@ -11,6 +11,9 @@ export default defineConfig(
     'node_modules/**',
     // Karma requires its config as CommonJS, so it is not part of the typed project.
     'karma.conf.cjs',
+    // A DOM-targeted declaration template for the transpiled output, checked by
+    // the checkJs pass rather than the Node toolchain tsconfig.
+    'src/dom.d.ts',
   ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
