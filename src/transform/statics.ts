@@ -12,26 +12,45 @@ export interface StaticResult {
   readonly hoisted: number;
 }
 
+/** Built-in constructors whose `new` call reads no module binding at definition. */
+const SAFE_CONSTRUCTORS = new Set(['Map', 'Set', 'WeakMap', 'WeakSet']);
+
 /**
- * Whether an expression is a literal that depends on nothing outside itself.
+ * Whether an expression can be moved into a static field without changing when
+ * its dependencies are read.
  *
  * A static field initialiser runs when the class is defined, which is earlier
  * than the module level assignment it replaces. Moving it is only safe when it
- * cannot observe that change, so this allows object and array literals of
- * literals and plain primitives, and nothing that reads another binding.
+ * observes nothing at that point that the assignment's later position would
+ * change. Literals qualify. So do function and arrow expressions, because their
+ * bodies run when called, not when defined. So does `new Map()` and its siblings
+ * over safe arguments, which is the common static registry. Anything that reads
+ * another binding at definition time is left where it is.
  */
-function isSelfContainedLiteral(node: Expression): boolean {
+function isSafeToHoist(node: Expression): boolean {
+  if (Node.isFunctionExpression(node) || Node.isArrowFunction(node)) {
+    return true;
+  }
   if (Node.isObjectLiteralExpression(node)) {
     return node.getProperties().every((property) => {
       if (!Node.isPropertyAssignment(property)) {
         return false;
       }
       const initializer = property.getInitializer();
-      return initializer !== undefined && isSelfContainedLiteral(initializer);
+      return initializer !== undefined && isSafeToHoist(initializer);
     });
   }
   if (Node.isArrayLiteralExpression(node)) {
-    return node.getElements().every((element) => isSelfContainedLiteral(element));
+    return node.getElements().every((element) => isSafeToHoist(element));
+  }
+  if (Node.isNewExpression(node)) {
+    const callee = node.getExpression();
+    if (!Node.isIdentifier(callee) || !SAFE_CONSTRUCTORS.has(callee.getText())) {
+      return false;
+    }
+    return node.getArguments().every((argument) => {
+      return Node.isExpression(argument) && isSafeToHoist(argument);
+    });
   }
   if (Node.isPrefixUnaryExpression(node)) {
     return Node.isNumericLiteral(node.getOperand());
@@ -85,9 +104,9 @@ interface Hoist {
  * both at once. This is the largest single source of "property does not exist"
  * errors in the transpiled output, after the instance fields.
  *
- * Only self contained literals are moved, because a static initialiser runs
+ * Only self contained values are moved, because a static initialiser runs
  * earlier than the assignment it replaces; anything that reads another binding
- * is left where it is.
+ * at definition time is left where it is.
  */
 export function declareStatics(sourceFile: SourceFile): StaticResult {
   const classes = new Map<string, ClassDeclaration>();
@@ -126,7 +145,7 @@ export function declareStatics(sourceFile: SourceFile): StaticResult {
       continue;
     }
     const right = expression.getRight();
-    if (!isSelfContainedLiteral(right)) {
+    if (!isSafeToHoist(right)) {
       continue;
     }
     hoists.push({

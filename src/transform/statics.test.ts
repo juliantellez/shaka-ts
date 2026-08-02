@@ -30,6 +30,27 @@ describe('declareStatics', () => {
     expect(declareStatics(sourceFile).hoisted).toBe(4);
   });
 
+  it('should hoist function and arrow expressions, whose bodies run when called', () => {
+    const sourceFile = parse(
+      `const dep = 1;\nexport class C {}\nC.make = function () {\n  return dep;\n};\nC.get = () => dep;\n`,
+    );
+    const result = declareStatics(sourceFile);
+    expect(result.hoisted).toBe(2);
+    expect(sourceFile.getFullText()).toMatch(/class C \{[\s\S]*static make = function/);
+  });
+
+  it('should hoist a new Map used as a static registry', () => {
+    const sourceFile = parse(`export class C {}\nC.registry = new Map();\n`);
+    expect(declareStatics(sourceFile).hoisted).toBe(1);
+    expect(sourceFile.getFullText()).toContain('static registry = new Map()');
+  });
+
+  it('should leave a new call to a non-builtin constructor in place', () => {
+    // `new Thing()` reads the module binding `Thing` at definition time.
+    const sourceFile = parse(`class Thing {}\nexport class C {}\nC.thing = new Thing();\n`);
+    expect(declareStatics(sourceFile).hoisted).toBe(0);
+  });
+
   it('should carry the JSDoc block onto the hoisted member', () => {
     const sourceFile = parse(`export class C {}\n/** @enum {number} */\nC.Code = { A: 1 };\n`);
     declareStatics(sourceFile);
