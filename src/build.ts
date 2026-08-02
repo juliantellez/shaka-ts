@@ -6,6 +6,7 @@ import { fetchUpstream } from './fetch.ts';
 import { buildGraph, discoverModuleFiles, toOutputPath } from './graph.ts';
 import { buildExportNameMap } from './transform/bindings.ts';
 import { transpileLibrary } from './pipeline.ts';
+import { buildExternsDeclaration } from './externs.ts';
 import { applyPatches } from './patches.ts';
 
 const OUTPUT_DIR = 'build/package';
@@ -67,6 +68,9 @@ async function writeTree(root: string): Promise<number> {
 
   await cp('src/runtime', join(OUTPUT_DIR, 'runtime'), { recursive: true });
   await writeFile(join(OUTPUT_DIR, 'shaka-player.ts'), buildCoreEntry(root), 'utf8');
+  // Ambient declaration for the Closure externs, so `shaka.extern.*` type
+  // references in the library resolve under the checkJs pass.
+  await writeFile(join(OUTPUT_DIR, 'externs.d.ts'), buildExternsDeclaration(root), 'utf8');
 
   process.stdout.write(`transpiled ${String(files.length)} files\n`);
   if (unresolved.size > 0) {
