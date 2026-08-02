@@ -29,5 +29,5 @@
     "vitest.config.ts",
     "vitest.oracle.config.ts"
   ],
-  "exclude": ["node_modules", "dist", "upstream"]
+  "exclude": ["node_modules", "dist", "upstream", "src/dom.d.ts"]
 }
