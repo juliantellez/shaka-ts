@@ -32,6 +32,18 @@ describe('dropClosureAnnotations', () => {
     expect(result.overrides).toBe(1);
   });
 
+  it('should not add override to a class that extends nothing', () => {
+    // A class implementing an interface has @override methods but no base class,
+    // so the keyword would be a type error. The tag is dropped without it.
+    const sourceFile = parse(`export class C {\n  /** @override */\n  m() {}\n}\n`);
+    const result = dropClosureAnnotations(sourceFile);
+    const text = sourceFile.getFullText();
+
+    expect(text).not.toContain('override');
+    expect(text).not.toContain('@override');
+    expect(result.overrides).toBe(0);
+  });
+
   it('should drop several closure only tags at once', () => {
     const sourceFile = parse(
       `export class C {\n  /**\n   * @const\n   * @final\n   * @export\n   */\n  m() {}\n}\n`,
