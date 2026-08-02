@@ -33,12 +33,12 @@ export class UtilError {
     /** @private {number} */
     this.code_ = code;
   }
-}
 
-/** @enum {number} */
-UtilError.Code = {
-  OK: 0,
-} as const;
+    /** @enum {number} */
+    static Code = {
+          OK: 0,
+        };
+}
 "
 `;
 
