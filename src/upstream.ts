@@ -13,7 +13,7 @@ export interface UpstreamPin {
   readonly version: string;
 }
 
-const SHAKA_VERSION = '4.16.5';
+const SHAKA_VERSION = '5.2.4';
 
 export const UPSTREAM: UpstreamPin = {
   repository: 'https://github.com/shaka-project/shaka-player.git',
