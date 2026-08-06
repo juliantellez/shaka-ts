@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
 
       # Real Chrome, because the specs drive browser APIs happy-dom cannot.
-      - uses: browser-actions/setup-chrome@v1
+      - uses: browser-actions/setup-chrome@v2
         id: chrome
         with:
           install-dependencies: true
