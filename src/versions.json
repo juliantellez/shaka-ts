@@ -13,5 +13,10 @@
     "version": "4.16.43",
     "checksum": "e219baf02f7a5f1a8598028472ea6ca2058cbbe8e6115e4567918d4570dbc527",
     "checkjsBaseline": 7515
+  },
+  {
+    "version": "5.2.6",
+    "checksum": "f75519a60fc173bbaaec08d9f6313781ebd51d2a973d2be886bda35d5ab27c81",
+    "checkjsBaseline": 6306
   }
 ]
